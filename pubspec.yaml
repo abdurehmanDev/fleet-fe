@@ -1,0 +1,76 @@
+name: rangrej_fleet
+description: "Rangrej Fleet Management App - Flutter BLoC Clean Architecture"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_bloc: ^8.1.6
+  bloc: ^8.1.4
+  equatable: ^2.0.5
+
+  # Networking
+  dio: ^5.7.0
+  pretty_dio_logger: ^1.4.0
+
+  # Dependency Injection
+  get_it: ^8.0.2
+
+  # Navigation
+  go_router: ^14.3.0
+
+  # Secure Storage
+  flutter_secure_storage: ^9.2.2
+
+  # Shared Preferences
+  shared_preferences: ^2.3.3
+
+  # Environment Variables
+  flutter_dotenv: ^5.2.1
+
+  # Logging
+  logger: ^2.4.0
+
+  # UI & Utilities
+  cupertino_icons: ^1.0.8
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  intl: ^0.19.0
+  gap: ^3.0.1
+  lottie: ^3.1.3
+  fl_chart: ^0.68.0
+  url_launcher: ^6.3.0
+  path_provider: ^2.1.3
+  fluttertoast: ^8.2.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mocktail: ^1.0.4
+  bloc_test: ^9.1.7
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/images/
+    - assets/icons/
+    - assets/animations/
+#  fonts:
+#    - family: Poppins
+#      fonts:
+#        - asset: assets/fonts/Poppins-Regular.ttf
+#        - asset: assets/fonts/Poppins-Medium.ttf
+#          weight: 500
+#        - asset: assets/fonts/Poppins-SemiBold.ttf
+#          weight: 600
+#        - asset: assets/fonts/Poppins-Bold.ttf
+#          weight: 700
