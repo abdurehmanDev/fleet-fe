@@ -1,5 +1,5 @@
 // ─── Auth Remote Data Source ──────────────────────────────────────────────────
-// Handles all remote API calls for auth feature
+// Handles all remote API calls for auth feature — real API, no mocks
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:rangrej_fleet/core/errors/exceptions.dart';
@@ -11,6 +11,13 @@ import 'package:rangrej_fleet/features/auth/data/models/login_request_model.dart
 abstract class AuthRemoteDataSource {
   Future<AuthResponseModel> login(LoginRequestModel request);
   Future<void> logout();
+  Future<UserModel> getMe();
+  Future<void> forgotPassword(String email);
+  Future<void> resetPassword({required String token, required String password});
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -20,20 +27,6 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<AuthResponseModel> login(LoginRequestModel request) async {
-    // Mock presentation credentials for static testing
-    if (request.email == 'admin@rangrejfleet.com' && request.password == 'password123') {
-      return const AuthResponseModel(
-        accessToken: 'mock_access_token_xyz',
-        refreshToken: 'mock_refresh_token_abc',
-        user: UserModel(
-          id: '1',
-          name: 'Rangrej Admin',
-          email: 'admin@rangrejfleet.com',
-          role: 'owner',
-        ),
-      );
-    }
-
     try {
       final response = await _apiClient.post(
         ApiEndpoints.login,
@@ -46,22 +39,64 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
       return AuthResponseModel.fromJson(response.data as Map<String, dynamic>);
     } catch (e) {
-      // Fallback to offline mode for ease of development and screen preview
-      return AuthResponseModel(
-        accessToken: 'mock_access_token_offline',
-        refreshToken: 'mock_refresh_token_offline',
-        user: UserModel(
-          id: '2',
-          name: 'Offline Owner',
-          email: request.email,
-          role: 'owner',
-        ),
-      );
+      if (e is ServerException || e is NetworkException || e is UnauthorizedException) {
+        rethrow;
+      }
+      throw ServerException(message: e.toString());
     }
   }
 
   @override
   Future<void> logout() async {
-    await _apiClient.post(ApiEndpoints.logout);
+    try {
+      await _apiClient.post(ApiEndpoints.logout);
+    } catch (_) {
+      // Silently handle logout errors — user is logging out anyway
+    }
+  }
+
+  @override
+  Future<UserModel> getMe() async {
+    try {
+      final response = await _apiClient.get(ApiEndpoints.me);
+      final data = response.data['data'] as Map<String, dynamic>? ?? {};
+      return UserModel.fromJson(data);
+    } catch (e) {
+      if (e is UnauthorizedException) rethrow;
+      throw ServerException(message: e.toString());
+    }
+  }
+
+  @override
+  Future<void> forgotPassword(String email) async {
+    await _apiClient.post(
+      ApiEndpoints.forgotPassword,
+      data: {'email': email},
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    await _apiClient.post(
+      ApiEndpoints.resetPassword,
+      data: {'token': token, 'password': password},
+    );
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _apiClient.patch(
+      ApiEndpoints.changePassword,
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
   }
 }

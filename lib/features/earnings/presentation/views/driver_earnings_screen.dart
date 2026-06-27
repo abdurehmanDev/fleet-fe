@@ -1,28 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rangrej_fleet/app/routes.dart';
+import 'package:rangrej_fleet/core/di/injector.dart';
 import 'package:rangrej_fleet/core/themes/app_theme.dart';
+import 'package:rangrej_fleet/features/earnings/domain/entities/weekly_earning_entity.dart';
+import 'package:rangrej_fleet/features/earnings/presentation/bloc/driver_earnings_bloc.dart';
 import 'package:rangrej_fleet/features/earnings/utils/bill_generator.dart';
 import 'package:rangrej_fleet/shared/helpers/ui_helper.dart';
 import 'package:rangrej_fleet/shared/widgets/common_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shimmer/shimmer.dart';
 
-class DriverEarningsScreen extends StatefulWidget {
+class DriverEarningsScreen extends StatelessWidget {
   final String id;
   const DriverEarningsScreen({super.key, required this.id});
 
   @override
-  State<DriverEarningsScreen> createState() => _DriverEarningsScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => sl<DriverEarningsBloc>()
+        ..add(LoadDriverEarningsForWeek(driverId: id, weekStart: _getStartOfWeek(DateTime.now()))),
+      child: _DriverEarningsView(id: id),
+    );
+  }
+
+  static DateTime _getStartOfWeek(DateTime date) {
+    int daysToSubtract = date.weekday - 1;
+    return date.subtract(Duration(days: daysToSubtract));
+  }
 }
 
-class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
+class _DriverEarningsView extends StatefulWidget {
+  final String id;
+  const _DriverEarningsView({required this.id});
+  
+  @override
+  State<_DriverEarningsView> createState() => _DriverEarningsViewState();
+}
+
+class _DriverEarningsViewState extends State<_DriverEarningsView> {
   DateTime _currentDate = DateTime.now();
   final _formKey = GlobalKey<FormState>();
-
-  // Driver details (mock)
-  final String _driverName = 'Rahul Sharma';
-  final String _driverMobile = '9876543210';
 
   // Controllers
   final _earningCtrl = TextEditingController();
@@ -36,14 +56,17 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
 
   bool _isEditing = false;
   bool _existingEarning = false;
-  bool _isLoading = false;
   double _netAmount = 0.0;
+  bool _dataLoaded = false;
+  String _driverName = '';
+  String _driverMobile = '';
 
   final _currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
 
   DateTime get _weekStart {
     int daysToSubtract = _currentDate.weekday - 1;
-    return _currentDate.subtract(Duration(days: daysToSubtract));
+    final start = _currentDate.subtract(Duration(days: daysToSubtract));
+    return DateTime(start.year, start.month, start.day);
   }
 
   DateTime get _weekEnd => _weekStart.add(const Duration(days: 6));
@@ -58,13 +81,18 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
   void initState() {
     super.initState();
     _setupListeners();
-    _loadDataForWeek();
   }
 
   void _setupListeners() {
     final controllers = [
-      _earningCtrl, _cashCtrl, _taxCtrl, _tollCtrl, _rentCtrl,
-      _uberSubCtrl, _adjustmentCtrl, _otherCtrl
+      _earningCtrl,
+      _cashCtrl,
+      _taxCtrl,
+      _tollCtrl,
+      _rentCtrl,
+      _uberSubCtrl,
+      _adjustmentCtrl,
+      _otherCtrl
     ];
     for (var ctrl in controllers) {
       ctrl.addListener(_calculateNet);
@@ -84,26 +112,24 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
     super.dispose();
   }
 
-  void _loadDataForWeek() {
-    // Mock logic based on week
-    setState(() {
-      _existingEarning = _currentDate.isBefore(DateTime.now().subtract(const Duration(days: 7)));
-      if (_existingEarning) {
-        _earningCtrl.text = '15000';
-        _cashCtrl.text = '2000';
-        _taxCtrl.text = '500';
-        _tollCtrl.text = '200';
-        _rentCtrl.text = '3000';
-        _uberSubCtrl.text = '1000';
-        _adjustmentCtrl.text = '0';
-        _otherCtrl.text = '0';
-        _isEditing = false;
-      } else {
-        _clearForm();
-        _isEditing = true;
-      }
-      _calculateNet();
-    });
+  void _populateForm(WeeklyEarningEntity? earning) {
+    if (earning != null) {
+      _earningCtrl.text = earning.weeklyEarning.toStringAsFixed(0);
+      _cashCtrl.text = earning.cash.toStringAsFixed(0);
+      _taxCtrl.text = earning.tax.toStringAsFixed(0);
+      _tollCtrl.text = earning.toll.toStringAsFixed(0);
+      _rentCtrl.text = earning.rent.toStringAsFixed(0);
+      _uberSubCtrl.text = earning.uberSubscription.toStringAsFixed(0);
+      _adjustmentCtrl.text = earning.adjustment.toStringAsFixed(0);
+      _otherCtrl.text = earning.other.toStringAsFixed(0);
+      _existingEarning = true;
+      _isEditing = false;
+    } else {
+      _clearForm();
+      _existingEarning = false;
+      _isEditing = true;
+    }
+    _calculateNet();
   }
 
   void _clearForm() {
@@ -142,24 +168,41 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
     if (picked != null) {
       setState(() {
         _currentDate = picked;
-        _loadDataForWeek();
+        _dataLoaded = false;
       });
+      _loadData();
     }
+  }
+
+  void _loadData() {
+    context.read<DriverEarningsBloc>().add(
+          LoadDriverEarningsForWeek(driverId: widget.id, weekStart: _weekStart),
+        );
   }
 
   void _onSave() {
     if (_formKey.currentState?.validate() ?? false) {
-      setState(() => _isLoading = true);
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _existingEarning = true;
-            _isEditing = false;
-          });
-          UIHelper.showSuccessSnackBar(context, 'Earnings saved successfully');
-        }
-      });
+      final earningEntity = WeeklyEarningEntity(
+        id: '',
+        driverId: widget.id,
+        amount: _netAmount,
+        weekStart: _weekStart,
+        weekEnd: _weekEnd,
+        weeklyEarning: double.tryParse(_earningCtrl.text) ?? 0.0,
+        cash: double.tryParse(_cashCtrl.text) ?? 0.0,
+        tax: double.tryParse(_taxCtrl.text) ?? 0.0,
+        toll: double.tryParse(_tollCtrl.text) ?? 0.0,
+        rent: double.tryParse(_rentCtrl.text) ?? 0.0,
+        uberSubscription: double.tryParse(_uberSubCtrl.text) ?? 0.0,
+        adjustment: double.tryParse(_adjustmentCtrl.text) ?? 0.0,
+        other: double.tryParse(_otherCtrl.text) ?? 0.0,
+      );
+
+      if (_existingEarning) {
+        context.read<DriverEarningsBloc>().add(UpdateDriverEarnings(earning: earningEntity));
+      } else {
+        context.read<DriverEarningsBloc>().add(SaveDriverEarnings(earning: earningEntity));
+      }
     }
   }
 
@@ -212,119 +255,159 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Driver Earnings'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    return BlocListener<DriverEarningsBloc, DriverEarningsState>(
+      listener: (context, state) {
+        if (state is DriverEarningsLoaded && !_dataLoaded) {
+          _dataLoaded = true;
+          _driverName = state.driver.name;
+          _driverMobile = state.driver.mobile;
+          _populateForm(state.earning);
+        } else if (state is DriverEarningsActionSuccess) {
+          UIHelper.showSuccessSnackBar(context, state.message);
+          _dataLoaded = false;
+          _loadData();
+        } else if (state is DriverEarningsActionError) {
+          UIHelper.showErrorSnackBar(context, state.message);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Driver Earnings'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.pop(),
+          ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppDimensions.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildDriverInfoCard(),
-            const SizedBox(height: AppDimensions.lg),
-            
-            _buildWeekSelector(),
-            const SizedBox(height: AppDimensions.lg),
+        body: BlocBuilder<DriverEarningsBloc, DriverEarningsState>(
+          builder: (context, state) {
+            if (state is DriverEarningsLoading) {
+              return _buildShimmerView();
+            }
 
-            if (_existingEarning && !_isEditing)
-              _buildExistingAlert(),
+            if (state is DriverEarningsError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimensions.lg),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                      const SizedBox(height: AppDimensions.md),
+                      Text(state.message, style: AppTextStyles.bodyMedium),
+                      const SizedBox(height: AppDimensions.lg),
+                      ElevatedButton(
+                        onPressed: _loadData,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
 
-            Form(
-              key: _formKey,
+            final isSaving = state is DriverEarningsSaving;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(AppDimensions.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Calculated Net Amount', style: AppTextStyles.heading3),
-                  const SizedBox(height: AppDimensions.md),
-                  
-                  AppCard(
-                    child: ExpansionTile(
-                      initiallyExpanded: true,
-                      leading: const Icon(Icons.add_circle, color: AppColors.success),
-                      title: Text('Additions', style: AppTextStyles.heading3.copyWith(color: AppColors.success)),
-                      childrenPadding: const EdgeInsets.all(AppDimensions.md),
+                  _buildDriverInfoCard(),
+                  const SizedBox(height: AppDimensions.lg),
+                  _buildWeekSelector(),
+                  const SizedBox(height: AppDimensions.lg),
+                  if (_existingEarning && !_isEditing) _buildExistingAlert(),
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildFieldRow(
-                          label: 'Weekly Earning',
-                          ctrl: _earningCtrl,
-                          isAddition: true,
-                          isRequired: true,
+                        Text('Weekly Financial Splits', style: AppTextStyles.heading3),
+                        const SizedBox(height: AppDimensions.md),
+                        AppCard(
+                          child: ExpansionTile(
+                            initiallyExpanded: true,
+                            leading: const Icon(Icons.add_circle, color: AppColors.success),
+                            title: Text('Additions',
+                                style: AppTextStyles.heading3.copyWith(color: AppColors.success)),
+                            childrenPadding: const EdgeInsets.all(AppDimensions.md),
+                            children: [
+                              _buildFieldRow(
+                                label: 'Weekly Earning',
+                                ctrl: _earningCtrl,
+                                isAddition: true,
+                                isRequired: true,
+                              ),
+                              _buildFieldRow(
+                                label: 'Toll',
+                                ctrl: _tollCtrl,
+                                isAddition: true,
+                                isRequired: true,
+                              ),
+                              _buildFieldRow(
+                                label: 'Adjustment',
+                                ctrl: _adjustmentCtrl,
+                                isAddition: true,
+                                isRequired: false,
+                              ),
+                            ],
+                          ),
                         ),
-                        _buildFieldRow(
-                          label: 'Toll',
-                          ctrl: _tollCtrl,
-                          isAddition: true,
-                          isRequired: true,
-                        ),
-                        _buildFieldRow(
-                          label: 'Adjustment',
-                          ctrl: _adjustmentCtrl,
-                          isAddition: true,
-                          isRequired: false,
+                        const SizedBox(height: AppDimensions.md),
+                        AppCard(
+                          child: ExpansionTile(
+                            initiallyExpanded: true,
+                            leading: const Icon(Icons.remove_circle, color: AppColors.error),
+                            title: Text('Deductions',
+                                style: AppTextStyles.heading3.copyWith(color: AppColors.error)),
+                            childrenPadding: const EdgeInsets.all(AppDimensions.md),
+                            children: [
+                              _buildFieldRow(
+                                label: 'Cash Paid to Driver',
+                                ctrl: _cashCtrl,
+                                isAddition: false,
+                                isRequired: true,
+                              ),
+                              _buildFieldRow(
+                                label: 'TDS/Tax',
+                                ctrl: _taxCtrl,
+                                isAddition: false,
+                                isRequired: true,
+                              ),
+                              _buildFieldRow(
+                                label: 'Vehicle Rent/Lease',
+                                ctrl: _rentCtrl,
+                                isAddition: false,
+                                isRequired: true,
+                              ),
+                              _buildFieldRow(
+                                label: 'Uber Subscription',
+                                ctrl: _uberSubCtrl,
+                                isAddition: false,
+                                isRequired: true,
+                              ),
+                              _buildFieldRow(
+                                label: 'Other Charges',
+                                ctrl: _otherCtrl,
+                                isAddition: false,
+                                isRequired: false,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  
-                  const SizedBox(height: AppDimensions.md),
-                  
-                  AppCard(
-                    child: ExpansionTile(
-                      initiallyExpanded: true,
-                      leading: const Icon(Icons.remove_circle, color: AppColors.error),
-                      title: Text('Deductions', style: AppTextStyles.heading3.copyWith(color: AppColors.error)),
-                      childrenPadding: const EdgeInsets.all(AppDimensions.md),
-                      children: [
-                        _buildFieldRow(
-                          label: 'Cash',
-                          ctrl: _cashCtrl,
-                          isAddition: false,
-                          isRequired: true,
-                        ),
-                        _buildFieldRow(
-                          label: 'Tax',
-                          ctrl: _taxCtrl,
-                          isAddition: false,
-                          isRequired: true,
-                        ),
-                        _buildFieldRow(
-                          label: 'Rent',
-                          ctrl: _rentCtrl,
-                          isAddition: false,
-                          isRequired: true,
-                        ),
-                        _buildFieldRow(
-                          label: 'Uber Subscription',
-                          ctrl: _uberSubCtrl,
-                          isAddition: false,
-                          isRequired: true,
-                        ),
-                        _buildFieldRow(
-                          label: 'Other',
-                          ctrl: _otherCtrl,
-                          isAddition: false,
-                          isRequired: false,
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: AppDimensions.lg),
+                  _buildTotalAmountCard(),
+                  const SizedBox(height: AppDimensions.xl),
+                  _buildActionButtons(isSaving),
+                  const SizedBox(height: AppDimensions.xl),
                 ],
               ),
-            ),
-
-            const SizedBox(height: AppDimensions.lg),
-            _buildTotalAmountCard(),
-            const SizedBox(height: AppDimensions.xl),
-
-            _buildActionButtons(),
-            const SizedBox(height: AppDimensions.xl),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -372,8 +455,11 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 onPressed: () {
-                  setState(() => _currentDate = _currentDate.subtract(const Duration(days: 7)));
-                  _loadDataForWeek();
+                  setState(() {
+                    _currentDate = _currentDate.subtract(const Duration(days: 7));
+                    _dataLoaded = false;
+                  });
+                  _loadData();
                 },
                 color: AppColors.primary,
               ),
@@ -390,8 +476,11 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
               IconButton(
                 icon: const Icon(Icons.chevron_right),
                 onPressed: () {
-                  setState(() => _currentDate = _currentDate.add(const Duration(days: 7)));
-                  _loadDataForWeek();
+                  setState(() {
+                    _currentDate = _currentDate.add(const Duration(days: 7));
+                    _dataLoaded = false;
+                  });
+                  _loadData();
                 },
                 color: AppColors.primary,
               ),
@@ -417,7 +506,8 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
             const Icon(Icons.info_outline, color: AppColors.info),
             const SizedBox(width: AppDimensions.sm),
             Expanded(
-              child: Text('Earnings already calculated for this week', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.info)),
+              child: Text('Calculated & Saved for this week',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.info)),
             ),
             TextButton(
               onPressed: () => setState(() => _isEditing = true),
@@ -444,12 +534,17 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
         children: [
           Expanded(
             flex: 2,
-            child: Row(
-              children: [
-                Text(label, style: AppTextStyles.bodyMedium),
-                const SizedBox(width: 4),
-                Text(sign, style: AppTextStyles.labelLarge.copyWith(color: color)),
-              ],
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: label, style: AppTextStyles.bodyMedium),
+                  const TextSpan(text: ' '),
+                  TextSpan(
+                    text: sign,
+                    style: AppTextStyles.labelLarge.copyWith(color: color),
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -465,9 +560,7 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              validator: isRequired 
-                ? (v) => v == null || v.isEmpty ? 'Required' : null
-                : null,
+              validator: isRequired ? (v) => v == null || v.isEmpty ? 'Required' : null : null,
             ),
           ),
         ],
@@ -477,7 +570,7 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
 
   Widget _buildTotalAmountCard() {
     final color = _netAmount >= 0 ? AppColors.success : AppColors.error;
-    
+
     return Container(
       padding: const EdgeInsets.all(AppDimensions.lg),
       decoration: BoxDecoration(
@@ -486,28 +579,31 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
       ),
       child: Center(
         child: Text(
-          'Net Amount: ${_currencyFormat.format(_netAmount)}',
+          'Net Payout: ${_currencyFormat.format(_netAmount)}',
           style: AppTextStyles.heading1.copyWith(color: AppColors.white),
         ),
       ),
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(bool isSaving) {
     if (_isEditing) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ElevatedButton(
-            onPressed: _isLoading ? null : _onSave,
+            onPressed: isSaving ? null : _onSave,
             style: ElevatedButton.styleFrom(
               backgroundColor: _existingEarning ? AppColors.info : AppColors.success,
               foregroundColor: AppColors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
             ),
-            child: _isLoading 
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text(_existingEarning ? 'Update Earnings' : 'Calculate Earnings'),
+            child: isSaving
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text(_existingEarning ? 'Update Earnings' : 'Save Earnings'),
           ),
           if (_existingEarning) ...[
             const SizedBox(height: AppDimensions.md),
@@ -526,12 +622,12 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
         ElevatedButton.icon(
           onPressed: _generateBill,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8E2DE2), // Purple pink gradient color representation
+            backgroundColor: const Color(0xFF8E2DE2),
             foregroundColor: AppColors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
           icon: const Icon(Icons.receipt_long),
-          label: const Text('Generate Bill (PNG)'),
+          label: const Text('Generate Bill Statement'),
         ),
         const SizedBox(height: AppDimensions.md),
         OutlinedButton.icon(
@@ -542,9 +638,30 @@ ${_adjustmentCtrl.text.isNotEmpty && _adjustmentCtrl.text != '0' ? '➕ Adjustme
             padding: const EdgeInsets.symmetric(vertical: 16),
           ),
           icon: const Icon(Icons.share),
-          label: const Text('Share on WhatsApp'),
+          label: const Text('Share Statement on WhatsApp'),
         ),
       ],
+    );
+  }
+
+  Widget _buildShimmerView() {
+    return Shimmer.fromColors(
+      baseColor: AppColors.grey200,
+      highlightColor: AppColors.grey100,
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.lg),
+        child: Column(
+          children: [
+            Container(height: 80, color: AppColors.white),
+            const SizedBox(height: AppDimensions.lg),
+            Container(height: 70, color: AppColors.white),
+            const SizedBox(height: AppDimensions.lg),
+            Container(height: 180, color: AppColors.white),
+            const SizedBox(height: AppDimensions.md),
+            Container(height: 180, color: AppColors.white),
+          ],
+        ),
+      ),
     );
   }
 }

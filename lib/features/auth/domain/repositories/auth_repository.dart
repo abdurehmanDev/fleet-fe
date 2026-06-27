@@ -17,4 +17,16 @@ abstract class AuthRepository {
 
   /// Check if user is currently authenticated
   Future<bool> isAuthenticated();
+
+  /// Get current authenticated user from API
+  Future<(UserEntity?, Failure?)> getMe();
+
+  /// Forgot password
+  Future<(bool, Failure?)> forgotPassword(String email);
+
+  /// Change password
+  Future<(bool, Failure?)> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }

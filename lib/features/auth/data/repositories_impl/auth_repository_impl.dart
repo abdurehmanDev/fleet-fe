@@ -1,5 +1,5 @@
 // ─── Auth Repository Implementation ──────────────────────────────────────────
-// Implements the domain AuthRepository contract; handles errors and maps to failures
+// Implements the domain AuthRepository contract — real API, no mocks
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:convert';
@@ -29,29 +29,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String email,
     required String password,
   }) async {
-    // Bypass connection check for mock admin to allow seamless login in static testing
-    if (email == 'admin@rangrejfleet.com' && password == 'password123') {
-      try {
-        final response = await remoteDataSource.login(
-          LoginRequestModel(email: email, password: password),
-        );
-        return (response.toEntity(), null);
-      } catch (e) {
-        return (null, UnknownFailure(message: e.toString()));
-      }
-    }
-
     final isConnected = await networkInfo.isConnected;
     if (!isConnected) {
-      // Allow fallback login even if fully offline
-      try {
-        final response = await remoteDataSource.login(
-          LoginRequestModel(email: email, password: password),
-        );
-        return (response.toEntity(), null);
-      } catch (e) {
-        return (null, const NetworkFailure(message: 'Network connection is unavailable'));
-      }
+      return (null, const NetworkFailure(message: 'No internet connection. Please check your network.'));
     }
 
     try {
@@ -87,9 +67,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await remoteDataSource.logout();
       await secureStorage.clearAll();
       return (true, null);
-    } on ServerException catch (e) {
-      return (false, ServerFailure(message: e.message));
-    } catch (e) {
+    } catch (_) {
       await secureStorage.clearAll(); // Clear locally even if API fails
       return (true, null);
     }
@@ -98,5 +76,56 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<bool> isAuthenticated() async {
     return await secureStorage.isAuthenticated();
+  }
+
+  @override
+  Future<(UserEntity?, Failure?)> getMe() async {
+    try {
+      final user = await remoteDataSource.getMe();
+      final entity = UserEntity(
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      );
+      return (entity, null);
+    } on UnauthorizedException {
+      return (null, const UnauthorizedFailure(message: 'Session expired'));
+    } on ServerException catch (e) {
+      return (null, ServerFailure(message: e.message));
+    } catch (e) {
+      return (null, UnknownFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<(bool, Failure?)> forgotPassword(String email) async {
+    try {
+      await remoteDataSource.forgotPassword(email);
+      return (true, null);
+    } on ServerException catch (e) {
+      return (false, ServerFailure(message: e.message));
+    } catch (e) {
+      return (false, UnknownFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<(bool, Failure?)> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await remoteDataSource.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      return (true, null);
+    } on ServerException catch (e) {
+      return (false, ServerFailure(message: e.message));
+    } catch (e) {
+      return (false, UnknownFailure(message: e.toString()));
+    }
   }
 }

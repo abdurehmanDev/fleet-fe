@@ -1,20 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:rangrej_fleet/app/routes.dart';
+import 'package:rangrej_fleet/core/di/injector.dart';
 import 'package:rangrej_fleet/core/themes/app_theme.dart';
+import 'package:rangrej_fleet/features/dashboard/data/models/dashboard_summary_model.dart';
+import 'package:rangrej_fleet/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:rangrej_fleet/shared/widgets/common_widgets.dart';
 import 'package:rangrej_fleet/shared/views/main_layout.dart';
+import 'package:shimmer/shimmer.dart';
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => sl<DashboardBloc>()..add(const LoadDashboardData()),
+      child: const _DashboardView(),
+    );
+  }
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  int _currentIndex = 0; // For bottom navigation
+class _DashboardView extends StatefulWidget {
+  const _DashboardView();
+
+  @override
+  State<_DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<_DashboardView> {
+  final _currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹');
 
   @override
   Widget build(BuildContext context) {
@@ -31,25 +48,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            onPressed: () {
+              context.push(AppRoutes.notifications);
+            },
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppDimensions.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfileHeader(),
-            const SizedBox(height: AppDimensions.xl),
-            _buildStatsCards(),
-            const SizedBox(height: AppDimensions.xl),
-            _buildSelectedWeekCard(),
-            const SizedBox(height: AppDimensions.xl),
-            _buildDriverEarningsDetail(),
-            const SizedBox(height: AppDimensions.xxl),
-          ],
-        ),
+      body: BlocBuilder<DashboardBloc, DashboardState>(
+        builder: (context, state) {
+          if (state is DashboardLoading) {
+            return _buildShimmer();
+          }
+
+          if (state is DashboardError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppDimensions.lg),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, size: 64, color: AppColors.error),
+                    const SizedBox(height: AppDimensions.md),
+                    Text(state.message, style: AppTextStyles.bodyMedium),
+                    const SizedBox(height: AppDimensions.lg),
+                    ElevatedButton(
+                      onPressed: () => context.read<DashboardBloc>().add(const LoadDashboardData()),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          if (state is DashboardLoaded) {
+            final summary = state.summary;
+            final overview = state.overview;
+
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<DashboardBloc>().add(const LoadDashboardData());
+                await context.read<DashboardBloc>().stream.firstWhere(
+                      (s) => s is DashboardLoaded || s is DashboardError,
+                    );
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(AppDimensions.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildProfileHeader(),
+                    const SizedBox(height: AppDimensions.xl),
+                    _buildStatsCards(summary, overview),
+                    const SizedBox(height: AppDimensions.xl),
+                    _buildSelectedWeekCard(overview),
+                    const SizedBox(height: AppDimensions.xl),
+                    _buildDriverEarningsDetail(overview),
+                    const SizedBox(height: AppDimensions.xxl),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -68,31 +132,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Text('Rangrej Fleet', style: AppTextStyles.heading2),
             const SizedBox(height: 4),
-            Text('Admin Profile', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
+            Text('Owner Dashboard', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildStatsCards() {
+  Widget _buildStatsCards(DashboardSummaryModel summary, WeeklyOverviewModel overview) {
     return Row(
       children: [
         Expanded(
           child: _buildDashboardCard(
             title: 'Total Drivers',
-            value: '42',
-            subtitle: '+3 New this week',
-            icon: Icons.trending_up,
+            value: summary.totalDrivers.toString(),
+            subtitle: '${summary.activeDrivers} registered',
+            icon: Icons.people,
             iconColor: AppColors.success,
           ),
         ),
         const SizedBox(width: AppDimensions.md),
         Expanded(
           child: _buildDashboardCard(
-            title: 'Active Earnings',
-            value: '₹ 2,84,500',
-            subtitle: 'Current Period Average',
+            title: 'Active Payouts',
+            value: _currencyFormat.format(overview.totalDriverPayouts),
+            subtitle: 'Current period payouts',
             icon: Icons.account_balance_wallet,
             iconColor: AppColors.primary,
           ),
@@ -101,7 +165,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildSelectedWeekCard() {
+  Widget _buildSelectedWeekCard(WeeklyOverviewModel overview) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppDimensions.lg),
@@ -113,23 +177,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Selected Week', style: AppTextStyles.labelLarge),
-              const Icon(Icons.calendar_month, color: AppColors.info),
+              Text('Selected Week Period', style: AppTextStyles.labelLarge),
+              Icon(Icons.calendar_month, color: AppColors.info),
             ],
           ),
           const SizedBox(height: AppDimensions.sm),
-          Text('Week 43', style: AppTextStyles.heading1.copyWith(color: AppColors.info)),
+          Text(
+            overview.week.isNotEmpty ? overview.week : 'Current Week',
+            style: AppTextStyles.heading2.copyWith(color: AppColors.info),
+          ),
           const SizedBox(height: 4),
-          Text('Autumn Peak Season', style: AppTextStyles.bodyMedium),
+          Text('Live Operational Summary', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
         ],
       ),
     );
   }
 
-  Widget _buildDriverEarningsDetail() {
+  Widget _buildDriverEarningsDetail(WeeklyOverviewModel overview) {
+    final netShare = overview.companyEarning - overview.totalDriverPayouts;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -139,13 +208,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: const EdgeInsets.all(AppDimensions.lg),
           child: Column(
             children: [
-              _buildDetailRow('Total Weekly Earnings', '₹ 5,34,700', isBold: true),
+              _buildDetailRow('Total Weekly Payouts', _currencyFormat.format(overview.totalDriverPayouts), isBold: true),
               const Padding(padding: EdgeInsets.symmetric(vertical: AppDimensions.sm), child: Divider()),
-              _buildDetailRow('Cash Collected', '₹ 82,450', valueColor: AppColors.error),
+              _buildDetailRow('Total Company Revenue', _currencyFormat.format(overview.companyEarning), valueColor: AppColors.warning),
               const SizedBox(height: AppDimensions.sm),
-              _buildDetailRow('Tolls Paid', '₹ 12,890', valueColor: AppColors.success),
+              _buildDetailRow('Active Vehicles Count', overview.activeVehicles.toString(), valueColor: AppColors.success),
               const Padding(padding: EdgeInsets.symmetric(vertical: AppDimensions.sm), child: Divider(thickness: 2)),
-              _buildDetailRow('Net Amount', '₹ 4,39,360', isBold: true, valueColor: AppColors.primary, fontSize: 20),
+              _buildDetailRow(
+                'Owner Net Flow',
+                _currencyFormat.format(netShare),
+                isBold: true,
+                valueColor: netShare >= 0 ? AppColors.success : AppColors.error,
+                fontSize: 20,
+              ),
             ],
           ),
         ),
@@ -167,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Text(title, style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
           const SizedBox(height: AppDimensions.sm),
-          Text(value, style: AppTextStyles.heading2),
+          Text(value, style: AppTextStyles.heading2, maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: AppDimensions.md),
           Row(
             children: [
@@ -194,9 +269,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Text(
           label,
-          style: isBold
-              ? AppTextStyles.labelLarge.copyWith(fontSize: fontSize)
-              : AppTextStyles.bodyMedium,
+          style: isBold ? AppTextStyles.labelLarge.copyWith(fontSize: fontSize) : AppTextStyles.bodyMedium,
         ),
         Text(
           value,
@@ -209,5 +282,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ],
     );
   }
-}
 
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: AppColors.grey200,
+      highlightColor: AppColors.grey100,
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimensions.lg),
+        child: Column(
+          children: [
+            Container(height: 70, color: AppColors.white),
+            const SizedBox(height: AppDimensions.lg),
+            Row(
+              children: [
+                Expanded(child: Container(height: 120, color: AppColors.white)),
+                const SizedBox(width: AppDimensions.md),
+                Expanded(child: Container(height: 120, color: AppColors.white)),
+              ],
+            ),
+            const SizedBox(height: AppDimensions.lg),
+            Container(height: 100, color: AppColors.white),
+            const SizedBox(height: AppDimensions.lg),
+            Container(height: 200, color: AppColors.white),
+          ],
+        ),
+      ),
+    );
+  }
+}

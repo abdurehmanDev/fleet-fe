@@ -1,57 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rangrej_fleet/app/routes.dart';
+import 'package:rangrej_fleet/core/di/injector.dart';
 import 'package:rangrej_fleet/core/themes/app_theme.dart';
+import 'package:rangrej_fleet/features/auth/domain/repositories/auth_repository.dart';
+import 'package:rangrej_fleet/shared/helpers/ui_helper.dart';
 
-class MainLayout extends StatelessWidget {
-  final Widget child;
+class MainLayout extends StatefulWidget {
+  final StatefulNavigationShell navigationShell;
 
-  const MainLayout({super.key, required this.child});
+  const MainLayout({super.key, required this.navigationShell});
 
   static final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
-  int _calculateSelectedIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith(AppRoutes.home) || location.startsWith(AppRoutes.dashboard) || location.startsWith(AppRoutes.vehicles) || location.startsWith('/edit-vehicle')) {
-      return 0;
+  @override
+  State<MainLayout> createState() => _MainLayoutState();
+}
+
+class _MainLayoutState extends State<MainLayout> {
+  String _userName = 'Fleet Manager';
+  String _userEmail = 'admin@rangrejfleet.com';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final (user, _) = await sl<AuthRepository>().getMe();
+    if (user != null) {
+      setState(() {
+        _userName = user.name;
+        _userEmail = user.email;
+      });
     }
-    if (location.startsWith(AppRoutes.drivers) || location.startsWith('/edit-driver') || location.startsWith('/driver-earnings')) {
-      return 1;
-    }
-    if (location.startsWith(AppRoutes.calendar)) {
-      return 2;
-    }
-    if (location.startsWith(AppRoutes.analytics)) {
-      return 3;
-    }
-    return 0;
   }
 
   void _onItemTapped(int index, BuildContext context) {
-    switch (index) {
-      case 0:
-        context.go(AppRoutes.home);
-        break;
-      case 1:
-        context.go(AppRoutes.drivers);
-        break;
-      case 2:
-        context.go(AppRoutes.calendar);
-        break;
-      case 3:
-        context.go(AppRoutes.analytics);
-        break;
+    widget.navigationShell.goBranch(
+      index,
+      // A common pattern when using bottom navigation bars is to support
+      // navigating to the initial location when tapping the item that is
+      // already active. This example demonstrates how to support this behavior,
+      // using the initialLocation parameter of goBranch.
+      initialLocation: index == widget.navigationShell.currentIndex,
+    );
+  }
+
+  Future<void> _onLogout(BuildContext context) async {
+    final confirmed = await UIHelper.showConfirmDialog(
+      context,
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out of your Rangrej Fleet account?',
+      confirmText: 'Sign Out',
+      isDangerous: true,
+    );
+
+    if (confirmed == true) {
+      await sl<AuthRepository>().logout();
+      if (mounted) {
+        context.go(AppRoutes.login);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: scaffoldKey,
+      key: MainLayout.scaffoldKey,
       drawer: _buildDrawer(context),
-      body: child,
+      body: widget.navigationShell,
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _calculateSelectedIndex(context),
+        currentIndex: widget.navigationShell.currentIndex,
         onTap: (index) => _onItemTapped(index, context),
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
@@ -73,8 +94,8 @@ class MainLayout extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
-            decoration: BoxDecoration(
+          DrawerHeader(
+            decoration: const BoxDecoration(
               color: AppColors.primary,
             ),
             child: Column(
@@ -84,16 +105,29 @@ class MainLayout extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: AppColors.white,
                   radius: 30,
-                  child: Icon(Icons.local_shipping, size: 30, color: AppColors.primary),
+                  child: Text(
+                    _userName.isNotEmpty ? _userName[0].toUpperCase() : 'M',
+                    style: AppTextStyles.heading1.copyWith(color: AppColors.primary, fontSize: 24),
+                  ),
                 ),
-                SizedBox(height: AppDimensions.md),
-                Text('Fleet Manager', style: TextStyle(color: AppColors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                Text('Rangrej Fleet Admin', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                const SizedBox(height: AppDimensions.sm),
+                Text(
+                  _userName,
+                  style: const TextStyle(color: AppColors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  _userEmail,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.dashboard),
+            leading: const Icon(Icons.dashboard_outlined),
             title: const Text('Dashboard'),
             onTap: () {
               Navigator.pop(context);
@@ -101,18 +135,29 @@ class MainLayout extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.build),
+            leading: const Icon(Icons.person_outline),
+            title: const Text('My Profile'),
+            onTap: () {
+              Navigator.pop(context);
+              context.push(AppRoutes.profile);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notifications'),
+            onTap: () {
+              Navigator.pop(context);
+              context.push(AppRoutes.notifications);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.build_outlined),
             title: const Text('Maintenance Logs'),
             onTap: () => Navigator.pop(context),
           ),
           ListTile(
-            leading: const Icon(Icons.ev_station),
-            title: const Text('Fuel Tracking'),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('Owner Settings'),
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Settings'),
             onTap: () => Navigator.pop(context),
           ),
           const Divider(),
@@ -121,7 +166,7 @@ class MainLayout extends StatelessWidget {
             title: const Text('Sign Out', style: TextStyle(color: AppColors.error)),
             onTap: () {
               Navigator.pop(context);
-              context.go(AppRoutes.login);
+              _onLogout(context);
             },
           ),
         ],

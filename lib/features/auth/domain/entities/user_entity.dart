@@ -9,19 +9,19 @@ class UserEntity extends Equatable {
   final String name;
   final String email;
   final String role;
-  final String? profilePicture;
+  final bool isActive;
 
   const UserEntity({
     required this.id,
     required this.name,
     required this.email,
     required this.role,
-    this.profilePicture,
+    this.isActive = true,
   });
 
-  bool get isAdmin => role.toLowerCase() == 'admin';
-  bool get isDriver => role.toLowerCase() == 'driver';
+  bool get isOwner => role.toUpperCase() == 'OWNER';
+  bool get isManager => role.toUpperCase() == 'MANAGER';
 
   @override
-  List<Object?> get props => [id, name, email, role, profilePicture];
+  List<Object?> get props => [id, name, email, role, isActive];
 }
