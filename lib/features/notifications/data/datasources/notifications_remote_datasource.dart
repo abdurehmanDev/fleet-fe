@@ -6,7 +6,7 @@ import 'package:rangrej_fleet/features/drivers/data/models/driver_model.dart';
 import 'package:rangrej_fleet/features/notifications/data/models/notification_model.dart';
 
 abstract class NotificationsRemoteDataSource {
-  Future<(List<NotificationModel>, PaginationMeta)> getNotifications({int page = 1, int limit = 10});
+  Future<(List<NotificationModel>, PaginationMeta)> getNotifications({int page = 1, int limit = 10, bool forceRefresh = false});
   Future<int> getUnreadCount();
   Future<void> markAsRead(String id);
   Future<void> markAllAsRead();
@@ -18,11 +18,12 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
   const NotificationsRemoteDataSourceImpl(this._apiClient);
 
   @override
-  Future<(List<NotificationModel>, PaginationMeta)> getNotifications({int page = 1, int limit = 10}) async {
+  Future<(List<NotificationModel>, PaginationMeta)> getNotifications({int page = 1, int limit = 10, bool forceRefresh = false}) async {
     try {
       final response = await _apiClient.get(
         ApiEndpoints.notifications,
         queryParameters: {'page': page, 'limit': limit},
+        forceRefresh: forceRefresh,
       );
       final data = response.data['data'] as List<dynamic>? ?? [];
       final meta = response.data['meta'] as Map<String, dynamic>? ?? {};
@@ -51,7 +52,7 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
   @override
   Future<void> markAsRead(String id) async {
     try {
-      await _apiClient.patch(ApiEndpoints.notificationRead(id));
+      await _apiClient.patch(ApiEndpoints.notificationRead(id), invalidateCache: ['notifications']);
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
       throw ServerException(message: e.toString());
@@ -61,7 +62,7 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
   @override
   Future<void> markAllAsRead() async {
     try {
-      await _apiClient.patch(ApiEndpoints.notificationsReadAll);
+      await _apiClient.patch(ApiEndpoints.notificationsReadAll, invalidateCache: ['notifications']);
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
       throw ServerException(message: e.toString());
@@ -71,7 +72,7 @@ class NotificationsRemoteDataSourceImpl implements NotificationsRemoteDataSource
   @override
   Future<void> deleteNotification(String id) async {
     try {
-      await _apiClient.delete(ApiEndpoints.notificationById(id));
+      await _apiClient.delete(ApiEndpoints.notificationById(id), invalidateCache: ['notifications']);
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
       throw ServerException(message: e.toString());

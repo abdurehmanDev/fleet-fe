@@ -23,19 +23,23 @@ class CompanyEarningModel {
   factory CompanyEarningModel.fromJson(Map<String, dynamic> json) {
     return CompanyEarningModel(
       id: json['id']?.toString() ?? '',
-      grossRevenue: double.tryParse(json['grossRevenue']?.toString() ?? json['revenue']?.toString() ?? '') ?? 0.0,
+      grossRevenue: double.tryParse(json['totalCompanyEarning']?.toString() ?? json['grossRevenue']?.toString() ?? json['revenue']?.toString() ?? '') ?? 0.0,
       totalDriverPayouts: double.tryParse(json['totalDriverPayouts']?.toString() ?? json['driver_payouts']?.toString() ?? '') ?? 0.0,
       operatingCosts: double.tryParse(json['operatingCosts']?.toString() ?? json['operating_costs']?.toString() ?? '') ?? 0.0,
-      ownerShare: double.tryParse(json['ownerShare']?.toString() ?? json['owner_share']?.toString() ?? '') ?? 0.0,
-      weekStart: DateTime.tryParse(json['weekStart']?.toString() ?? json['week_start']?.toString() ?? '') ?? DateTime.now(),
-      weekEnd: DateTime.tryParse(json['weekEnd']?.toString() ?? json['week_end']?.toString() ?? '') ?? DateTime.now(),
+      ownerShare: double.tryParse(json['ownerEarning']?.toString() ?? json['ownerShare']?.toString() ?? json['owner_share']?.toString() ?? '') ?? 0.0,
+      weekStart: DateTime.tryParse(json['weekStartDate']?.toString() ?? json['weekStart']?.toString() ?? json['week_start']?.toString() ?? '') ?? DateTime.now(),
+      weekEnd: DateTime.tryParse(json['weekEndDate']?.toString() ?? json['weekEnd']?.toString() ?? json['week_end']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'revenue': grossRevenue,
-      'date': weekStart.toIso8601String().substring(0, 10),
+      'totalCompanyEarning': grossRevenue,
+      'totalDriverPayouts': totalDriverPayouts,
+      'operatingCosts': operatingCosts,
+      'ownerEarning': ownerShare,
+      'weekStartDate': weekStart.toIso8601String().substring(0, 10),
+      'weekEndDate': weekEnd.toIso8601String().substring(0, 10),
     };
   }
 

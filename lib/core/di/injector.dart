@@ -4,6 +4,7 @@
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:rangrej_fleet/core/cache/cache_manager.dart';
 import 'package:rangrej_fleet/core/network/api_client.dart';
 import 'package:rangrej_fleet/core/network/network_info.dart';
 import 'package:rangrej_fleet/core/storage/secure_storage_service.dart';
@@ -67,6 +68,9 @@ Future<void> setupDependencies() async {
   );
 
   sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl());
+
+  // Initialize Cache Manager
+  await CacheManager.instance.initialize();
 
   sl.registerLazySingleton<ApiClient>(
     () => ApiClient(sl<SecureStorageService>()),

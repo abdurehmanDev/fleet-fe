@@ -12,7 +12,7 @@ abstract class EarningsRemoteDataSource {
   Future<WeeklyEarningModel> updateDriverEarning(String id, WeeklyEarningModel model);
 
   // Company weekly earnings
-  Future<CompanyEarningModel?> getCompanyEarningForWeek(String dateStr);
+  Future<CompanyEarningModel?> getCompanyEarningForWeek(String dateStr, {bool forceRefresh = false});
   Future<CompanyEarningModel> saveCompanyEarning(CompanyEarningModel model);
   
   // Total payouts/trips/ops cost for a given week
@@ -95,7 +95,7 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
         'other': model.other,
       };
       
-      final response = await _apiClient.post(ApiEndpoints.weeklyEarnings, data: payload);
+      final response = await _apiClient.post(ApiEndpoints.weeklyEarnings, data: payload, invalidateCache: ['earnings', 'weekly-earnings', 'dashboard']);
       final dynamic rawData = response.data;
       final mapData = rawData is Map ? _safeCast(rawData['data']) : <String, dynamic>{};
       return WeeklyEarningModel.fromJson(mapData);
@@ -126,7 +126,7 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
         'other': model.other,
       };
 
-      final response = await _apiClient.patch(ApiEndpoints.weeklyEarningsById(id), data: payload);
+      final response = await _apiClient.patch(ApiEndpoints.weeklyEarningsById(id), data: payload, invalidateCache: ['earnings', 'weekly-earnings', 'dashboard']);
       final dynamic rawData = response.data;
       final mapData = rawData is Map ? _safeCast(rawData['data']) : <String, dynamic>{};
       return WeeklyEarningModel.fromJson(mapData);
@@ -137,14 +137,17 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
   }
 
   @override
-  Future<CompanyEarningModel?> getCompanyEarningForWeek(String dateStr) async {
+  Future<CompanyEarningModel?> getCompanyEarningForWeek(String dateStr, {bool forceRefresh = false}) async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.companyEarningsWeek, queryParameters: {'date': dateStr});
+      final response = await _apiClient.get(ApiEndpoints.companyEarningsWeek, queryParameters: {'date': dateStr}, forceRefresh: forceRefresh);
       final dynamic rawData = response.data;
       if (rawData is Map) {
         final inner = rawData['data'];
         if (inner is Map) {
-          return CompanyEarningModel.fromJson(_safeCast(inner));
+          final earningData = inner['earning'];
+          if (earningData is Map) {
+            return CompanyEarningModel.fromJson(_safeCast(earningData));
+          }
         }
       }
       return null;
@@ -159,7 +162,7 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
   @override
   Future<CompanyEarningModel> saveCompanyEarning(CompanyEarningModel model) async {
     try {
-      final response = await _apiClient.post(ApiEndpoints.companyEarnings, data: model.toJson());
+      final response = await _apiClient.post(ApiEndpoints.companyEarnings, data: model.toJson(), invalidateCache: ['earnings', 'company-earnings', 'dashboard']);
       final dynamic rawData = response.data;
       final mapData = rawData is Map ? _safeCast(rawData['data']) : <String, dynamic>{};
       return CompanyEarningModel.fromJson(mapData);
@@ -175,7 +178,29 @@ class EarningsRemoteDataSourceImpl implements EarningsRemoteDataSource {
       final response = await _apiClient.get(ApiEndpoints.weeklyEarningsWeek, queryParameters: {'date': dateStr});
       final dynamic rawData = response.data;
       if (rawData is Map) {
-        return _safeCast(rawData['data']);
+        final dataMap = _safeCast(rawData['data']);
+        final earnings = dataMap['earnings'];
+        
+        double totalPayouts = 0.0;
+        int activeDrivers = 0;
+        int completedTrips = 0;
+        
+        if (earnings is List) {
+          activeDrivers = earnings.length;
+          for (final driverEarning in earnings) {
+            if (driverEarning is Map) {
+              totalPayouts += double.tryParse(driverEarning['weeklyEarning']?.toString() ?? '0.0') ?? 0.0;
+              completedTrips += int.tryParse(driverEarning['trips']?.toString() ?? '0') ?? 0;
+            }
+          }
+        }
+        
+        return {
+          'totalPayouts': totalPayouts,
+          'activeDrivers': activeDrivers,
+          'completedTrips': completedTrips,
+          'estimatedOperatingCosts': 0.0,
+        };
       }
       return {};
     } catch (e) {

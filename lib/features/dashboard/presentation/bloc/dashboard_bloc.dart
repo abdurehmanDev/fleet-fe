@@ -23,24 +23,33 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     emit(const DashboardLoading());
 
     // 1. Fetch dashboard summary
-    final (summary, summaryFailure) = await _repository.getDashboardSummary(date: event.date);
+    final (summary, summaryFailure) = await _repository.getDashboardSummary(
+      date: event.date,
+      forceRefresh: event.forceRefresh,
+    );
     if (summaryFailure != null) {
       emit(DashboardError(message: summaryFailure.message));
       return;
     }
 
     // 2. Fetch weekly overview map
-    final (overview, overviewFailure) = await _repository.getWeeklyOverview();
+    final (overview, overviewFailure) = await _repository.getWeeklyOverview(
+      forceRefresh: event.forceRefresh,
+    );
     if (overviewFailure != null) {
       emit(DashboardError(message: overviewFailure.message));
       return;
     }
 
     // 3. Fetch company analytics trend
-    final (companyTrend, _) = await _repository.getCompanyAnalyticsTrend();
+    final (companyTrend, _) = await _repository.getCompanyAnalyticsTrend(
+      forceRefresh: event.forceRefresh,
+    );
 
     // 4. Fetch driver earnings trend
-    final (driverTrend, _) = await _repository.getDriverEarningsTrend();
+    final (driverTrend, _) = await _repository.getDriverEarningsTrend(
+      forceRefresh: event.forceRefresh,
+    );
 
     if (summary != null && overview != null) {
       emit(DashboardLoaded(

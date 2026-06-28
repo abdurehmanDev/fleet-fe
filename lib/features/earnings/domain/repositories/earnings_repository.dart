@@ -10,7 +10,7 @@ abstract class EarningsRepository {
   Future<(WeeklyEarningEntity?, Failure?)> updateDriverEarning(String id, WeeklyEarningEntity entity);
 
   // Company earnings
-  Future<(CompanyEarningEntity?, Failure?)> getCompanyEarningForWeek(DateTime date);
+  Future<(CompanyEarningEntity?, Failure?)> getCompanyEarningForWeek(DateTime date, {bool forceRefresh = false});
   Future<(CompanyEarningEntity?, Failure?)> saveCompanyEarning(CompanyEarningEntity entity);
   
   // Weekly total summaries

@@ -14,10 +14,10 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
   const NotificationsRepositoryImpl({required this.remoteDataSource, required this.networkInfo});
 
   @override
-  Future<(List<NotificationEntity>, PaginationMeta?, Failure?)> getNotifications({int page = 1, int limit = 10}) async {
+  Future<(List<NotificationEntity>, PaginationMeta?, Failure?)> getNotifications({int page = 1, int limit = 10, bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (<NotificationEntity>[], null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final (models, meta) = await remoteDataSource.getNotifications(page: page, limit: limit);
+      final (models, meta) = await remoteDataSource.getNotifications(page: page, limit: limit, forceRefresh: forceRefresh);
       return (models.map((m) => m.toEntity()).toList(), meta, null);
     } on ServerException catch (e) {
       return (<NotificationEntity>[], null, ServerFailure(message: e.message));

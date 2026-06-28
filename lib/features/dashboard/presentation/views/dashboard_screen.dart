@@ -87,7 +87,7 @@ class _DashboardViewState extends State<_DashboardView> {
 
             return RefreshIndicator(
               onRefresh: () async {
-                context.read<DashboardBloc>().add(const LoadDashboardData());
+                context.read<DashboardBloc>().add(const LoadDashboardData(forceRefresh: true));
                 await context.read<DashboardBloc>().stream.firstWhere(
                       (s) => s is DashboardLoaded || s is DashboardError,
                     );
@@ -140,26 +140,54 @@ class _DashboardViewState extends State<_DashboardView> {
   }
 
   Widget _buildStatsCards(DashboardSummaryModel summary, WeeklyOverviewModel overview) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildDashboardCard(
-            title: 'Total Drivers',
-            value: summary.totalDrivers.toString(),
-            subtitle: '${summary.activeDrivers} registered',
-            icon: Icons.people,
-            iconColor: AppColors.success,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildDashboardCard(
+                title: 'Gross Earnings',
+                value: _currencyFormat.format(overview.companyEarning),
+                subtitle: 'Company revenue',
+                icon: Icons.monetization_on,
+                iconColor: AppColors.success,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.md),
+            Expanded(
+              child: _buildDashboardCard(
+                title: 'Net Earnings',
+                value: _currencyFormat.format(overview.companyEarning - overview.totalDriverPayouts),
+                subtitle: 'Owner share',
+                icon: Icons.account_balance,
+                iconColor: AppColors.primary,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppDimensions.md),
-        Expanded(
-          child: _buildDashboardCard(
-            title: 'Active Payouts',
-            value: _currencyFormat.format(overview.totalDriverPayouts),
-            subtitle: 'Current period payouts',
-            icon: Icons.account_balance_wallet,
-            iconColor: AppColors.primary,
-          ),
+        const SizedBox(height: AppDimensions.md),
+        Row(
+          children: [
+            Expanded(
+              child: _buildDashboardCard(
+                title: 'Total Drivers',
+                value: summary.totalDrivers.toString(),
+                subtitle: '${summary.activeDrivers} registered',
+                icon: Icons.people,
+                iconColor: AppColors.info,
+              ),
+            ),
+            const SizedBox(width: AppDimensions.md),
+            Expanded(
+              child: _buildDashboardCard(
+                title: 'Active Payouts',
+                value: _currencyFormat.format(overview.totalDriverPayouts),
+                subtitle: 'Current period payouts',
+                icon: Icons.account_balance_wallet,
+                iconColor: AppColors.warning,
+              ),
+            ),
+          ],
         ),
       ],
     );

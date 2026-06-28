@@ -87,7 +87,7 @@ class VehiclesBloc extends Bloc<VehiclesEvent, VehiclesState> {
   }
 
   Future<void> _onRefreshVehicles(RefreshVehicles event, Emitter<VehiclesState> emit) async {
-    final (vehicles, meta, failure) = await _repository.getVehicles(page: 1, limit: 10);
+    final (vehicles, meta, failure) = await _repository.getVehicles(page: 1, limit: 10, forceRefresh: true);
     if (failure != null) { emit(VehiclesError(message: failure.message)); return; }
     emit(VehiclesLoaded(vehicles: vehicles, meta: meta, hasMore: meta?.hasMore ?? false, currentPage: 1));
   }

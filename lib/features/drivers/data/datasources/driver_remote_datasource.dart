@@ -12,6 +12,7 @@ abstract class DriverRemoteDataSource {
     int page = 1,
     int limit = 10,
     String? search,
+    bool forceRefresh = false,
   });
 
   Future<List<DriverModel>> searchDrivers(String query);
@@ -31,6 +32,7 @@ class DriverRemoteDataSourceImpl implements DriverRemoteDataSource {
     int page = 1,
     int limit = 10,
     String? search,
+    bool forceRefresh = false,
   }) async {
     try {
       final queryParams = <String, dynamic>{
@@ -44,6 +46,7 @@ class DriverRemoteDataSourceImpl implements DriverRemoteDataSource {
       final response = await _apiClient.get(
         ApiEndpoints.drivers,
         queryParameters: queryParams,
+        forceRefresh: forceRefresh,
       );
 
       final data = response.data['data'] as List<dynamic>? ?? [];
@@ -104,6 +107,7 @@ class DriverRemoteDataSourceImpl implements DriverRemoteDataSource {
       final response = await _apiClient.post(
         ApiEndpoints.drivers,
         data: {'name': name, 'mobile': mobile},
+        invalidateCache: ['drivers'],
       );
       final data = response.data['data'] as Map<String, dynamic>? ?? {};
       return DriverModel.fromJson(data);
@@ -123,6 +127,7 @@ class DriverRemoteDataSourceImpl implements DriverRemoteDataSource {
       final response = await _apiClient.patch(
         ApiEndpoints.driverById(id),
         data: payload,
+        invalidateCache: ['drivers'],
       );
       final data = response.data['data'] as Map<String, dynamic>? ?? {};
       return DriverModel.fromJson(data);
@@ -135,7 +140,7 @@ class DriverRemoteDataSourceImpl implements DriverRemoteDataSource {
   @override
   Future<void> deleteDriver(String id) async {
     try {
-      await _apiClient.delete(ApiEndpoints.driverById(id));
+      await _apiClient.delete(ApiEndpoints.driverById(id), invalidateCache: ['drivers']);
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
       throw ServerException(message: e.toString());

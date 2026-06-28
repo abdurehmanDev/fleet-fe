@@ -10,6 +10,7 @@ abstract class VehicleRemoteDataSource {
     int page = 1,
     int limit = 10,
     String? status,
+    bool forceRefresh = false,
   });
   Future<List<VehicleModel>> searchVehicles(String query);
   Future<VehicleModel> getVehicleById(String id);
@@ -28,12 +29,13 @@ class VehicleRemoteDataSourceImpl implements VehicleRemoteDataSource {
     int page = 1,
     int limit = 10,
     String? status,
+    bool forceRefresh = false,
   }) async {
     try {
       final queryParams = <String, dynamic>{'page': page, 'limit': limit};
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
 
-      final response = await _apiClient.get(ApiEndpoints.vehicles, queryParameters: queryParams);
+      final response = await _apiClient.get(ApiEndpoints.vehicles, queryParameters: queryParams, forceRefresh: forceRefresh);
       final data = response.data['data'] as List<dynamic>? ?? [];
       final meta = response.data['meta'] as Map<String, dynamic>? ?? {};
 
@@ -73,7 +75,7 @@ class VehicleRemoteDataSourceImpl implements VehicleRemoteDataSource {
   @override
   Future<VehicleModel> createVehicle({required String number, String status = 'ACTIVE'}) async {
     try {
-      final response = await _apiClient.post(ApiEndpoints.vehicles, data: {'number': number, 'status': status});
+      final response = await _apiClient.post(ApiEndpoints.vehicles, data: {'number': number, 'status': status}, invalidateCache: ['vehicles']);
       return VehicleModel.fromJson(response.data['data'] as Map<String, dynamic>? ?? {});
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
@@ -87,7 +89,7 @@ class VehicleRemoteDataSourceImpl implements VehicleRemoteDataSource {
       final payload = <String, dynamic>{};
       if (number != null) payload['number'] = number;
       if (status != null) payload['status'] = status;
-      final response = await _apiClient.patch(ApiEndpoints.vehicleById(id), data: payload);
+      final response = await _apiClient.patch(ApiEndpoints.vehicleById(id), data: payload, invalidateCache: ['vehicles']);
       return VehicleModel.fromJson(response.data['data'] as Map<String, dynamic>? ?? {});
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
@@ -98,7 +100,7 @@ class VehicleRemoteDataSourceImpl implements VehicleRemoteDataSource {
   @override
   Future<void> updateVehicleStatus(String id, String status) async {
     try {
-      await _apiClient.patch(ApiEndpoints.vehicleStatus(id), data: {'status': status});
+      await _apiClient.patch(ApiEndpoints.vehicleStatus(id), data: {'status': status}, invalidateCache: ['vehicles']);
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
       throw ServerException(message: e.toString());
@@ -108,7 +110,7 @@ class VehicleRemoteDataSourceImpl implements VehicleRemoteDataSource {
   @override
   Future<void> deleteVehicle(String id) async {
     try {
-      await _apiClient.delete(ApiEndpoints.vehicleById(id));
+      await _apiClient.delete(ApiEndpoints.vehicleById(id), invalidateCache: ['vehicles']);
     } catch (e) {
       if (e is ServerException || e is NetworkException) rethrow;
       throw ServerException(message: e.toString());

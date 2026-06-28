@@ -79,7 +79,7 @@ class _HomeViewState extends State<_HomeView> {
 
             return RefreshIndicator(
               onRefresh: () async {
-                context.read<DashboardBloc>().add(const LoadDashboardData());
+                context.read<DashboardBloc>().add(const LoadDashboardData(forceRefresh: true));
                 await context.read<DashboardBloc>().stream.firstWhere(
                       (s) => s is DashboardLoaded || s is DashboardError,
                     );

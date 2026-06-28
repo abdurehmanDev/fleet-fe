@@ -62,9 +62,9 @@ class WeeklyOverviewModel {
   factory WeeklyOverviewModel.fromJson(Map<String, dynamic> json) {
     return WeeklyOverviewModel(
       week: json['week']?.toString() ?? '',
-      companyEarning: double.tryParse(json['companyEarning']?.toString() ?? json['company_earning']?.toString() ?? '') ?? 0.0,
-      totalDriverPayouts: double.tryParse(json['totalDriverPayouts']?.toString() ?? json['total_driver_payouts']?.toString() ?? '') ?? 0.0,
-      ownerEarning: double.tryParse(json['ownerEarning']?.toString() ?? json['owner_earning']?.toString() ?? '') ?? 0.0,
+      companyEarning: double.tryParse(json['companyEarning']?.toString() ?? json['company_earning']?.toString() ?? json['revenue']?.toString() ?? '') ?? 0.0,
+      totalDriverPayouts: double.tryParse(json['totalDriverPayouts']?.toString() ?? json['total_driver_payouts']?.toString() ?? json['driver_payouts']?.toString() ?? '') ?? 0.0,
+      ownerEarning: double.tryParse(json['ownerEarning']?.toString() ?? json['owner_earning']?.toString() ?? json['owner_share']?.toString() ?? '') ?? 0.0,
       driverEarningsCount: int.tryParse(json['driverEarningsCount']?.toString() ?? json['driver_earnings_count']?.toString() ?? '') ?? 0,
       activeVehicles: int.tryParse(json['activeVehicles']?.toString() ?? json['active_vehicles']?.toString() ?? '') ?? 0,
     );

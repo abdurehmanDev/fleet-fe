@@ -5,10 +5,10 @@ import 'package:rangrej_fleet/core/network/endpoints.dart';
 import 'package:rangrej_fleet/features/dashboard/data/models/dashboard_summary_model.dart';
 
 abstract class DashboardRemoteDataSource {
-  Future<DashboardSummaryModel> getDashboardSummary({String? dateStr});
-  Future<WeeklyOverviewModel> getWeeklyOverview();
-  Future<List<Map<String, dynamic>>> getCompanyAnalyticsTrend();
-  Future<List<Map<String, dynamic>>> getDriverEarningsTrend();
+  Future<DashboardSummaryModel> getDashboardSummary({String? dateStr, bool forceRefresh = false});
+  Future<WeeklyOverviewModel> getWeeklyOverview({bool forceRefresh = false});
+  Future<List<Map<String, dynamic>>> getCompanyAnalyticsTrend({bool forceRefresh = false});
+  Future<List<Map<String, dynamic>>> getDriverEarningsTrend({bool forceRefresh = false});
 }
 
 class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
@@ -16,11 +16,12 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   const DashboardRemoteDataSourceImpl(this._apiClient);
 
   @override
-  Future<DashboardSummaryModel> getDashboardSummary({String? dateStr}) async {
+  Future<DashboardSummaryModel> getDashboardSummary({String? dateStr, bool forceRefresh = false}) async {
     try {
       final response = await _apiClient.get(
         ApiEndpoints.dashboardSummary,
         queryParameters: dateStr != null ? {'date': dateStr} : null,
+        forceRefresh: forceRefresh,
       );
       return DashboardSummaryModel.fromJson(response.data['data'] as Map<String, dynamic>? ?? {});
     } catch (e) {
@@ -30,9 +31,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   }
 
   @override
-  Future<WeeklyOverviewModel> getWeeklyOverview() async {
+  Future<WeeklyOverviewModel> getWeeklyOverview({bool forceRefresh = false}) async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.dashboardWeeklyOverview);
+      final response = await _apiClient.get(ApiEndpoints.dashboardWeeklyOverview, forceRefresh: forceRefresh);
       final data = response.data['data'] as Map<String, dynamic>? ?? {};
       return WeeklyOverviewModel.fromJson(data);
     } catch (e) {
@@ -42,11 +43,12 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getCompanyAnalyticsTrend() async {
+  Future<List<Map<String, dynamic>>> getCompanyAnalyticsTrend({bool forceRefresh = false}) async {
     try {
       final response = await _apiClient.get(
         ApiEndpoints.companyEarningsAnalytics,
         queryParameters: {'weeks': 4},
+        forceRefresh: forceRefresh,
       );
       final dataMap = response.data['data'] as Map<String, dynamic>? ?? {};
       final barChart = dataMap['barChart'] as List<dynamic>? ?? [];
@@ -58,9 +60,9 @@ class DashboardRemoteDataSourceImpl implements DashboardRemoteDataSource {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getDriverEarningsTrend() async {
+  Future<List<Map<String, dynamic>>> getDriverEarningsTrend({bool forceRefresh = false}) async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.weeklyEarningsAnalytics);
+      final response = await _apiClient.get(ApiEndpoints.weeklyEarningsAnalytics, forceRefresh: forceRefresh);
       final list = response.data['data'] as List<dynamic>? ?? [];
       return list.map((json) => json as Map<String, dynamic>).toList();
     } catch (e) {

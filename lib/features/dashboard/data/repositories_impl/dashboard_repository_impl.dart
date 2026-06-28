@@ -13,11 +13,11 @@ class DashboardRepositoryImpl implements DashboardRepository {
   const DashboardRepositoryImpl({required this.remoteDataSource, required this.networkInfo});
 
   @override
-  Future<(DashboardSummaryModel?, Failure?)> getDashboardSummary({DateTime? date}) async {
+  Future<(DashboardSummaryModel?, Failure?)> getDashboardSummary({DateTime? date, bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
       final dateStr = date?.toIso8601String().substring(0, 10);
-      final result = await remoteDataSource.getDashboardSummary(dateStr: dateStr);
+      final result = await remoteDataSource.getDashboardSummary(dateStr: dateStr, forceRefresh: forceRefresh);
       return (result, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));
@@ -29,10 +29,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
   }
 
   @override
-  Future<(WeeklyOverviewModel?, Failure?)> getWeeklyOverview() async {
+  Future<(WeeklyOverviewModel?, Failure?)> getWeeklyOverview({bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final result = await remoteDataSource.getWeeklyOverview();
+      final result = await remoteDataSource.getWeeklyOverview(forceRefresh: forceRefresh);
       return (result, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));
@@ -42,10 +42,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
   }
 
   @override
-  Future<(List<Map<String, dynamic>>?, Failure?)> getCompanyAnalyticsTrend() async {
+  Future<(List<Map<String, dynamic>>?, Failure?)> getCompanyAnalyticsTrend({bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final result = await remoteDataSource.getCompanyAnalyticsTrend();
+      final result = await remoteDataSource.getCompanyAnalyticsTrend(forceRefresh: forceRefresh);
       return (result, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));
@@ -55,10 +55,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
   }
 
   @override
-  Future<(List<Map<String, dynamic>>?, Failure?)> getDriverEarningsTrend() async {
+  Future<(List<Map<String, dynamic>>?, Failure?)> getDriverEarningsTrend({bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final result = await remoteDataSource.getDriverEarningsTrend();
+      final result = await remoteDataSource.getDriverEarningsTrend(forceRefresh: forceRefresh);
       return (result, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));

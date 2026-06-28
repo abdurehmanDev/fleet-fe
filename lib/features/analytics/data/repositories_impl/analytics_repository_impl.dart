@@ -12,10 +12,10 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
   const AnalyticsRepositoryImpl({required this.remoteDataSource, required this.networkInfo});
 
   @override
-  Future<(List<Map<String, dynamic>>?, Failure?)> getCompanyAnalytics({int weeks = 4}) async {
+  Future<(List<Map<String, dynamic>>?, Failure?)> getCompanyAnalytics({int weeks = 4, bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final data = await remoteDataSource.getCompanyAnalytics(weeks: weeks);
+      final data = await remoteDataSource.getCompanyAnalytics(weeks: weeks, forceRefresh: forceRefresh);
       return (data, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));
@@ -27,10 +27,10 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
   }
 
   @override
-  Future<(List<Map<String, dynamic>>?, Failure?)> getDriverAnalytics(String driverId) async {
+  Future<(List<Map<String, dynamic>>?, Failure?)> getDriverAnalytics(String driverId, {bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final data = await remoteDataSource.getDriverAnalytics(driverId);
+      final data = await remoteDataSource.getDriverAnalytics(driverId, forceRefresh: forceRefresh);
       return (data, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));
@@ -40,10 +40,10 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
   }
 
   @override
-  Future<(Map<String, dynamic>?, Failure?)> getAnalyticsOverview() async {
+  Future<(Map<String, dynamic>?, Failure?)> getAnalyticsOverview({bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final data = await remoteDataSource.getAnalyticsOverview();
+      final data = await remoteDataSource.getAnalyticsOverview(forceRefresh: forceRefresh);
       return (data, null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));

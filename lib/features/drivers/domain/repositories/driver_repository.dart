@@ -8,6 +8,7 @@ abstract class DriverRepository {
     int page = 1,
     int limit = 10,
     String? search,
+    bool forceRefresh = false,
   });
 
   Future<(List<DriverEntity>?, Failure?)> searchDrivers(String query);

@@ -76,6 +76,7 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
+    bool forceRefresh = false,
   }) async {
     try {
       return await _dio.get(path, queryParameters: queryParameters, options: options);
@@ -90,9 +91,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
+    List<String> invalidateCache = const [],
   }) async {
     try {
-      return await _dio.post(path, data: data, queryParameters: queryParameters, options: options);
+      final response = await _dio.post(path, data: data, queryParameters: queryParameters, options: options);
+      return response;
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -104,9 +107,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
+    List<String> invalidateCache = const [],
   }) async {
     try {
-      return await _dio.put(path, data: data, queryParameters: queryParameters, options: options);
+      final response = await _dio.put(path, data: data, queryParameters: queryParameters, options: options);
+      return response;
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -118,9 +123,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
+    List<String> invalidateCache = const [],
   }) async {
     try {
-      return await _dio.patch(path, data: data, queryParameters: queryParameters, options: options);
+      final response = await _dio.patch(path, data: data, queryParameters: queryParameters, options: options);
+      return response;
     } on DioException catch (e) {
       throw _handleDioException(e);
     }
@@ -132,9 +139,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
+    List<String> invalidateCache = const [],
   }) async {
     try {
-      return await _dio.delete(path, data: data, queryParameters: queryParameters, options: options);
+      final response = await _dio.delete(path, data: data, queryParameters: queryParameters, options: options);
+      return response;
     } on DioException catch (e) {
       throw _handleDioException(e);
     }

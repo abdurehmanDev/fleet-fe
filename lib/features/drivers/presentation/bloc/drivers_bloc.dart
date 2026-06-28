@@ -196,6 +196,7 @@ class DriversBloc extends Bloc<DriversEvent, DriversState> {
     final (drivers, meta, failure) = await _repository.getDrivers(
       page: 1,
       limit: 10,
+      forceRefresh: true,
     );
 
     if (failure != null) {

@@ -95,10 +95,10 @@ class EarningsRepositoryImpl implements EarningsRepository {
   }
 
   @override
-  Future<(CompanyEarningEntity?, Failure?)> getCompanyEarningForWeek(DateTime date) async {
+  Future<(CompanyEarningEntity?, Failure?)> getCompanyEarningForWeek(DateTime date, {bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final model = await remoteDataSource.getCompanyEarningForWeek(_formatDate(date));
+      final model = await remoteDataSource.getCompanyEarningForWeek(_formatDate(date), forceRefresh: forceRefresh);
       return (model?.toEntity(), null);
     } on ServerException catch (e) {
       return (null, ServerFailure(message: e.message));

@@ -14,10 +14,10 @@ class VehicleRepositoryImpl implements VehicleRepository {
   const VehicleRepositoryImpl({required this.remoteDataSource, required this.networkInfo});
 
   @override
-  Future<(List<VehicleEntity>, PaginationMeta?, Failure?)> getVehicles({int page = 1, int limit = 10, String? status}) async {
+  Future<(List<VehicleEntity>, PaginationMeta?, Failure?)> getVehicles({int page = 1, int limit = 10, String? status, bool forceRefresh = false}) async {
     if (!await networkInfo.isConnected) return (<VehicleEntity>[], null, const NetworkFailure(message: 'No internet connection'));
     try {
-      final (models, meta) = await remoteDataSource.getVehicles(page: page, limit: limit, status: status);
+      final (models, meta) = await remoteDataSource.getVehicles(page: page, limit: limit, status: status, forceRefresh: forceRefresh);
       return (models.map((m) => m.toEntity()).toList(), meta, null);
     } on ServerException catch (e) {
       return (<VehicleEntity>[], null, ServerFailure(message: e.message));

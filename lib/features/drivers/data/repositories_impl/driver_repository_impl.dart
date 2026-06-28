@@ -21,6 +21,7 @@ class DriverRepositoryImpl implements DriverRepository {
     int page = 1,
     int limit = 10,
     String? search,
+    bool forceRefresh = false,
   }) async {
     if (!await networkInfo.isConnected) {
       return (<DriverEntity>[], null, const NetworkFailure(message: 'No internet connection'));
@@ -30,6 +31,7 @@ class DriverRepositoryImpl implements DriverRepository {
         page: page,
         limit: limit,
         search: search,
+        forceRefresh: forceRefresh,
       );
       final entities = models.map((m) => m.toEntity()).toList();
       return (entities, meta, null);

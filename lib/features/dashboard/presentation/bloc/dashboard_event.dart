@@ -8,9 +8,10 @@ abstract class DashboardEvent extends Equatable {
 
 class LoadDashboardData extends DashboardEvent {
   final DateTime? date;
+  final bool forceRefresh;
 
-  const LoadDashboardData({this.date});
+  const LoadDashboardData({this.date, this.forceRefresh = false});
 
   @override
-  List<Object?> get props => [date];
+  List<Object?> get props => [date, forceRefresh];
 }

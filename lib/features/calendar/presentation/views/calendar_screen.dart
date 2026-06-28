@@ -26,7 +26,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _loadCalendarWeeks();
   }
 
-  Future<void> _loadCalendarWeeks() async {
+  Future<void> _loadCalendarWeeks({bool forceRefresh = false}) async {
     setState(() => _isLoading = true);
     _weeksData.clear();
 
@@ -41,7 +41,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final weekStart = DateTime(start.year, start.month, start.day);
       final weekEnd = weekStart.add(const Duration(days: 6));
 
-      final (earning, _) = await repository.getCompanyEarningForWeek(weekStart);
+      final (earning, _) = await repository.getCompanyEarningForWeek(weekStart, forceRefresh: forceRefresh);
 
       _weeksData.add({
         'weekStart': weekStart,
@@ -70,7 +70,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadCalendarWeeks,
+            onPressed: () => _loadCalendarWeeks(forceRefresh: true),
           )
         ],
       ),
@@ -128,16 +128,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     style: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.bold),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    (earning != null)
-                                        ? 'Gross Revenue: ${_currencyFormat.format(earning.grossRevenue)}'
-                                        : 'Payout calculations pending',
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: (earning != null)
-                                          ? AppColors.textPrimary
-                                          : AppColors.textSecondary,
+                                  if (earning != null) ...[
+                                    Text(
+                                      'Gross: ${_currencyFormat.format(earning.grossRevenue)} | Payouts: ${_currencyFormat.format(earning.totalDriverPayouts)}',
+                                      style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
                                     ),
-                                  ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Net Earnings: ${_currencyFormat.format(earning.ownerShare)}',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: earning.ownerShare >= 0 ? AppColors.success : AppColors.error,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ] else
+                                    Text(
+                                      'Payout calculations pending',
+                                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                                    ),
                                 ],
                               ),
                             ),

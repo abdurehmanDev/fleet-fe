@@ -150,16 +150,6 @@ class _MainLayoutState extends State<MainLayout> {
               context.push(AppRoutes.notifications);
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.build_outlined),
-            title: const Text('Maintenance Logs'),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('Settings'),
-            onTap: () => Navigator.pop(context),
-          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: AppColors.error),
